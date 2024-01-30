@@ -1,62 +1,101 @@
 #if UNITY_EDITOR
 
-using UnityEditor;
 using UnityEngine;
+using UnityEditor;
+using System.Linq;
 using UnityEditor.Animations;
-using System.IO;
-using System.Text.RegularExpressions;
-using System.Collections.Generic;
 
-public class AnimationAutoEditor : EditorWindow
+public class AnimatorStatesLister : EditorWindow
 {
-    [MenuItem("Tools/Elly/Transition editor")]
+
+    private string[] statuses = { };
+    private AnimatorController activeController;
+    private int activeLayer = 0;
+    [MenuItem("Tools/Elly/Animator States Lister")]
     public static void ShowWindow()
     {
-        GetWindow(typeof(AnimationAutoEditor));
+        GetWindow<AnimatorStatesLister>("Animator States");
     }
 
-    private string layerName = "";
-
-    private void OnGUI()
+    void OnGUI()
     {
-        GUILayout.Label("List selected animation states", EditorStyles.boldLabel);
-
-        if (GUILayout.Button("List"))
+        if (GUILayout.Button("List States"))
         {
-            ListAnimationStates();
+            EditorGUILayout.HelpBox("Loading States", MessageType.Info);
+            ListAnimatorStates();
         }
 
-        EditorGUILayout.LabelField("Enter layer name:");
-        layerName = EditorGUILayout.TextField(layerName);
-    }
-
-
-    private void ListAnimationStates()
-    {
-        UnityEngine.Object[] selectedObjects = Selection.objects;
-
-        foreach (var selectedObject in selectedObjects)
+        if (activeController)
         {
-            AnimatorController controller = selectedObject as AnimatorController;
-            if (controller != null)
+            GUILayout.Label("Controller Name");
+            GUILayout.TextField(activeController.name);
+
+            var layers = from l in activeController.layers select l.name;
+
+            activeLayer = EditorGUILayout.Popup("Layer", activeLayer, layers.ToArray());
+
+            var layer = activeController.layers[activeLayer];
+            foreach (var state in layer.stateMachine.states)
             {
-                List<string> stateNames = new List<string>();
-                foreach (var layer in controller.layers)
-                {
-                    // Check if the layer name matches the user input
-                    if (layer.name == layerName)
-                    {
-                        foreach (var state in layer.stateMachine.states)
-                        {
-                            stateNames.Add(state.state.name);
-                        }
-                    }
-                }
-                Debug.Log(string.Join(", ", stateNames));
+                EditorGUILayout.LabelField("State:", state.state.name);
+            }
+
+            if (GUILayout.Button("Figure it out"))
+            {
+                DoSomething();
+            }
+        }
+
+        if (statuses.Length > 0)
+        {
+            EditorGUILayout.Space();
+            GUILayout.Label("Logs", EditorStyles.boldLabel);
+            foreach (var status in statuses)
+            {
+                GUILayout.Label(status);
             }
         }
     }
 
+    private void DoSomething()
+    {
+
+    }
+
+    private void ListAnimatorStates()
+    {
+        ArrayUtility.Clear(ref statuses);
+        Object selectedObject = Selection.activeObject;
+
+        if (selectedObject == null)
+        {
+            ArrayUtility.Add(ref statuses, "Error: No asset selected.");
+            EditorGUILayout.HelpBox("No asset selected.", MessageType.Info);
+            return;
+        }
+
+        if (selectedObject is AnimatorController)
+        {
+            AnimatorController controller = selectedObject as AnimatorController;
+            activeController = controller;
+
+            foreach (var layer in controller.layers)
+            {
+                EditorGUILayout.LabelField("Layer:", layer.name);
+                foreach (var state in layer.stateMachine.states)
+                {
+                    EditorGUILayout.LabelField("State:", state.state.name);
+                }
+            }
+        }
+        else
+        {
+            ArrayUtility.Add(ref statuses, "Error: The selected asset is not an Animator Controller.");
+            EditorGUILayout.HelpBox("The selected asset is not an Animator Controller.", MessageType.Warning);
+        }
+
+        ArrayUtility.Insert(ref statuses, statuses.Length, "Finished");
+    }
 }
 
 #endif
