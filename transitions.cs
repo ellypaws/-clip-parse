@@ -77,6 +77,7 @@ public class AnimatorStatesLister : EditorWindow
                 activeClip = ListStates(childAnimatorStates, actionNames, out var statesAvailable);
 
                 ShowNextAnimation(childAnimatorStates, statesAvailable);
+                ShowPreviousAnimation(childAnimatorStates, statesAvailable);
             }
 
             if (GUILayout.Button("Figure it out"))
@@ -96,7 +97,8 @@ public class AnimatorStatesLister : EditorWindow
         }
     }
 
-    private int ListStates(ChildAnimatorState[] childAnimatorStates, string[] actionNames, out IEnumerable<string> statesAvailable)
+    private int ListStates(ChildAnimatorState[] childAnimatorStates, string[] actionNames,
+        out IEnumerable<string> statesAvailable)
     {
         statesAvailable = from s in childAnimatorStates
             where s.state.name.StartsWith("A_" + actionNames[activeAction])
@@ -119,11 +121,19 @@ public class AnimatorStatesLister : EditorWindow
             Name = statesAvailable.ElementAt(activeClip)
         };
         nextAnimation(clip, childAnimatorStates);
-        GUILayout.Label("Next Animations");
-        foreach (var nextAnimation in clip.NextAnimations)
+        GUILayout.Label("Next Animations: " +
+                        (clip.NextAnimations.Count > 0 ? string.Join(", ", clip.NextAnimations) : "None"));
+    }
+
+    private void ShowPreviousAnimation(ChildAnimatorState[] childAnimatorStates, IEnumerable<string> statesAvailable)
+    {
+        // put activeClip in AnimationTransition class and call GetNextAnimation
+        var clip = new AnimationTransition
         {
-            GUILayout.Label(nextAnimation);
-        }
+            Name = statesAvailable.ElementAt(activeClip)
+        };
+        previousAnimation(clip, childAnimatorStates);
+        GUILayout.Label("Previous Animation: " + (clip.PreviousAnimation != null ? clip.PreviousAnimation : "None"));
     }
 
     private ChildAnimatorState[] ActionsSlections(AnimatorControllerLayer layer, out string[] actionNames)
@@ -156,12 +166,12 @@ public class AnimatorStatesLister : EditorWindow
         return activeController.layers[activeLayer];
     }
 
+    private const string Pattern =
+        @"A_(?<action>[a-z]+)_(?<char>[A-Z]?)_?(?<clip>\d{2})_?(?<alternate>[A-Z]?)?-?(?<transitionTo>(?<nextName>[a-z]+)?_?(?<nextClip>\d{2}))?";
 
     private void nextAnimation(AnimationTransition clip, ChildAnimatorState[] allAnimations)
     {
-        var pattern =
-            @"A_(?<action>[a-z]+)_(?<char>[A-Z]?)_?(?<clip>\d{2})_?(?<alternate>[A-Z]?)?-?(?<transitionTo>(?<nextName>[a-z]+)?_?(?<nextClip>\d{2}))?";
-        var match = Regex.Match(clip.Name, pattern);
+        var match = Regex.Match(clip.Name, Pattern);
 
         if (!match.Success)
         {
@@ -185,11 +195,10 @@ public class AnimatorStatesLister : EditorWindow
             return;
         }
 
-        var nextClipName = string.Format("A_{0}_{1}", result[action], int.Parse(result[clipNumber]) + 1);
+        var nextClipName = $"A_{result[action]}_{(int.Parse(result[clipNumber]) + 1):D2}";
         if (result[character] != "")
         {
-            nextClipName = string.Format("A_{0}_{1}_{2}", result[action], result[character],
-                int.Parse(result[clipNumber]) + 1);
+            nextClipName = $"A_{result[action]}_{result[character]}_{(int.Parse(result[clipNumber]) + 1):D2}";
         }
 
         var nextClip = FindAnimationByName($"^{clip.Name}-", allAnimations);
@@ -204,6 +213,52 @@ public class AnimatorStatesLister : EditorWindow
         {
             // append to clip.NextAnimations
             clip.NextAnimations.Add(nextClip.GetValueOrDefault().state.name);
+        }
+    }
+
+    private void previousAnimation(AnimationTransition clip, ChildAnimatorState[] allAnimations)
+    {
+        var match = Regex.Match(clip.Name, Pattern);
+
+        if (!match.Success)
+        {
+            // debug to unity console
+            Debug.Log("No match found for " + clip.Name);
+            return;
+        }
+
+        var result = match.Groups.Cast<Group>().ToDictionary(g => g.Name, g => g.Value);
+
+        if (result[alternate] != "")
+        {
+            // Alternate clips don't have previous animations
+            return;
+        }
+
+        // Check for transition animations first
+        if (result[transitionTo] != "")
+        {
+            // Transition animations don't have previous animations
+            return;
+        }
+
+        var previousClipName = $"A_{result[action]}_{(int.Parse(result[clipNumber]) - 1):D2}";
+        if (result[character] != "")
+        {
+            previousClipName = $"A_{result[action]}_{result[character]}_{(int.Parse(result[clipNumber]) - 1):D2}";
+        }
+
+        var previousClip = FindAnimationByName($"^{previousClipName}_?A?$", allAnimations);
+
+        // Check if previousClip has a value and its state is not null
+        if (previousClip.HasValue && previousClip.Value.state != null)
+        {
+            clip.PreviousAnimation = previousClip.Value.state.name;
+        }
+        else
+        {
+            // Handle the case when previousClip is null or state is null
+            Debug.Log("Previous clip or its state is null for " + clip.Name);
         }
     }
 
