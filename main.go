@@ -111,9 +111,7 @@ func (clip *Animation) getNextAnimation(allAnimations []*Animation) {
 
 	result := make(map[string]string)
 	for i, name := range re.SubexpNames() {
-		if i != 0 && name != "" {
-			result[name] = match[i]
-		}
+		result[name] = match[i]
 	}
 
 	// Check for transition animations first
@@ -163,7 +161,7 @@ func (clip *Animation) getNextAnimation(allAnimations []*Animation) {
 	}
 	if nextClip == nil {
 		// Try searching for clips with transitionTo
-		nextClip = findAnimationByName(fmt.Sprintf("^%s-", nextClipName), allAnimations)
+		nextClip = findAnimationByName(fmt.Sprintf("^%s-", match[0]), allAnimations)
 	}
 	if nextClip != nil {
 		clip.NextAnimations = append(clip.NextAnimations, nextClip.Name)
