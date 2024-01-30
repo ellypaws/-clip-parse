@@ -209,7 +209,7 @@ public class AnimatorStatesLister : EditorWindow
             nextClip = FindAnimationByName($"^{nextClipName}_?A?$", allAnimations);
         }
 
-        if (!nextClip.Equals(null))
+        if (nextClip.HasValue && nextClip.Value.state != null)
         {
             // append to clip.NextAnimations
             clip.NextAnimations.Add(nextClip.GetValueOrDefault().state.name);
