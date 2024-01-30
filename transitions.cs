@@ -7,10 +7,13 @@ using UnityEditor.Animations;
 
 public class AnimatorStatesLister : EditorWindow
 {
-
     private string[] statuses = { };
     private AnimatorController activeController;
     private int activeLayer = 0;
+    private int activeStateMachine = 0;
+    private int activeAction = 0;
+    private string[] statesAvailable = { };
+
     [MenuItem("Tools/Elly/Animator States Lister")]
     public static void ShowWindow()
     {
@@ -31,18 +34,35 @@ public class AnimatorStatesLister : EditorWindow
             GUILayout.TextField(activeController.name);
 
             var layers = from l in activeController.layers select l.name;
-
             activeLayer = EditorGUILayout.Popup("Layer", activeLayer, layers.ToArray());
-
             var layer = activeController.layers[activeLayer];
-            foreach (var state in layer.stateMachine.states)
+
+            var stateMachines = from s in layer.stateMachine.stateMachines select s.stateMachine.name;
+            var stateMachinesArray = stateMachines.ToArray();
+            ArrayUtility.Insert(ref stateMachinesArray, 0, "Root");
+            activeStateMachine = EditorGUILayout.Popup("State Machine", activeStateMachine, stateMachinesArray);
+
+            // Enumerate actions where we grab from A_`actionname`_01_B and list unique action names
+            var childAnimatorStates = activeStateMachine == 0
+                ? layer.stateMachine.states
+                : layer.stateMachine.stateMachines[activeStateMachine - 1].stateMachine.states;
+            var actions = from s in childAnimatorStates select s.state.name.Split('_').Skip(1).Take(1);
+            var actionNames = actions.SelectMany(x => x).Distinct().ToArray();
+            activeAction = EditorGUILayout.Popup("Action", activeAction, actionNames);
+
+            // check if the action is A_`actionname`
+            var statesAvailable = from s in childAnimatorStates
+                where s.state.name.StartsWith("A_" + actionNames[activeAction])
+                select s.state.name;
+            foreach (var state in statesAvailable)
             {
-                EditorGUILayout.LabelField("State:", state.state.name);
+                // scrollable list of states
+                GUILayout.Label(state);
             }
 
             if (GUILayout.Button("Figure it out"))
             {
-                DoSomething();
+                DoSomething(layer);
             }
         }
 
@@ -57,9 +77,8 @@ public class AnimatorStatesLister : EditorWindow
         }
     }
 
-    private void DoSomething()
+    private void DoSomething(AnimatorControllerLayer layer)
     {
-
     }
 
     private void ListAnimatorStates()
