@@ -42,7 +42,7 @@ func readFromFolder() []*Animation {
 }
 
 const (
-	name         = "name"
+	action       = "action"
 	char         = "char"
 	clipNumber   = "clip"
 	alternate    = "alternate"
@@ -53,14 +53,14 @@ const (
 
 // re is the regular expression for parsing the animation name.
 // The `A` at the beginning is for "Animation".
-// name is the name of the animation.
+// action is the name of the animation.
 // char is the character name. (optional)
 // clip is clipNumber.
 // alternate is the alternate animation letter. (optional)
 // transitionTo is the animation name to transition to. (optional)
 // nextName is the next animation name to transition to. (optional)
 // nextClip is the next animation clip to transition to. (optional)
-var re = regexp.MustCompile(`A_(?P<name>[a-z]+)_(?:(?P<char>[A-Z]?)_?(?P<clip>\d{2}))_?(?P<alternate>[A-Z]?)?-?(?P<transitionTo>(?P<nextName>[a-z]+)?_?(?P<nextClip>\d{2}))?`)
+var re = regexp.MustCompile(`A_(?P<action>[a-z]+)_(?:(?P<char>[A-Z]?)_?(?P<clip>\d{2}))_?(?P<alternate>[A-Z]?)?-?(?P<transitionTo>(?P<nextName>[a-z]+)?_?(?P<nextClip>\d{2}))?`)
 
 // fetchAnimations returns all the possible next animations.
 // The `A` at the beginning is for "Animation".
@@ -121,9 +121,9 @@ func (clip *Animation) getNextAnimation(allAnimations []*Animation) {
 		return
 	}
 
-	nextClipName := fmt.Sprintf("A_%s_%02d", result[name], atoi(result[clipNumber])+1)
+	nextClipName := fmt.Sprintf("A_%s_%02d", result[action], atoi(result[clipNumber])+1)
 	if result[char] != "" {
-		nextClipName = fmt.Sprintf("A_%s_%s_%02d", result[name], result[char], atoi(result[clipNumber])+1)
+		nextClipName = fmt.Sprintf("A_%s_%s_%02d", result[action], result[char], atoi(result[clipNumber])+1)
 	}
 
 	// Try searching for clips with transitionTo (e.g., 01 -> 01-02)
@@ -143,10 +143,10 @@ func (clip *Animation) findTransition(allAnimations []*Animation, result map[str
 	// No nextName means transition (e.g., 01-02)
 	if result[nextName] == "" {
 		// Transition within the same group but different clip
-		nextClipName := fmt.Sprintf("A_%s_%s", result[name], result[nextClip])
+		nextClipName := fmt.Sprintf("A_%s_%s", result[action], result[nextClip])
 		if result[char] != "" {
 			// TODO: Change char regex to also capture the underscore so we can always attempt to concatenate
-			nextClipName = fmt.Sprintf("A_%s_%s_%s", result[name], result[char], result[nextClip])
+			nextClipName = fmt.Sprintf("A_%s_%s_%s", result[action], result[char], result[nextClip])
 		}
 		nextClip := findAnimationByName(fmt.Sprintf("^%s$", nextClipName), allAnimations)
 		if nextClip == nil {
@@ -232,9 +232,9 @@ func (clip *Animation) getPreviousAnimation(allAnimations []*Animation) {
 		return
 	}
 
-	previousClipName := fmt.Sprintf("A_%s_%02d", result[name], atoi(result[clipNumber])-1)
+	previousClipName := fmt.Sprintf("A_%s_%02d", result[action], atoi(result[clipNumber])-1)
 	if result[char] != "" {
-		previousClipName = fmt.Sprintf("A_%s_%s_%02d", result[name], result[char], atoi(result[clipNumber])-1)
+		previousClipName = fmt.Sprintf("A_%s_%s_%02d", result[action], result[char], atoi(result[clipNumber])-1)
 	}
 
 	previousClip := findAnimationByName(fmt.Sprintf("^%s_?A?$", previousClipName), allAnimations)
@@ -260,9 +260,9 @@ func (clip *Animation) getAlternateAnimation(allAnimations []*Animation) {
 		return
 	}
 
-	toFind := fmt.Sprintf("A_%s_%s", result[name], result[clipNumber])
+	toFind := fmt.Sprintf("A_%s_%s", result[action], result[clipNumber])
 	if result[char] != "" {
-		toFind = fmt.Sprintf("A_%s_%s_%s", result[name], result[char], result[clipNumber])
+		toFind = fmt.Sprintf("A_%s_%s_%s", result[action], result[char], result[clipNumber])
 	}
 
 	alternates := filterAnimations(fmt.Sprintf("^%s_?[A-Z]?$", toFind), allAnimations)
