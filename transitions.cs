@@ -28,6 +28,14 @@ public class AnimationTransition
 
 public class AnimatorStatesLister : EditorWindow
 {
+    private const string action = "action";
+    private const string character = "char";
+    private const string clipNumber = "clip";
+    private const string alternate = "alternate";
+    private const string transitionTo = "transitionTo";
+    private const string nextName = "nextName";
+    private const string nextClip = "nextClip";
+    
     private string[] statuses = { };
     private AnimatorController activeController;
     private int activeLayer = 0;
@@ -128,24 +136,24 @@ public class AnimatorStatesLister : EditorWindow
 
         var result = match.Groups.Cast<Group>().ToDictionary(g => g.Name, g => g.Value);
 
-        if (result["alternate"] != "")
+        if (result[alternate] != "")
         {
             // Alternate clips don't have next animations, but use alternate animations instead
             return;
         }
 
         // Check for transition animations first
-        if (result["transitionTo"] != "")
+        if (result[transitionTo] != "")
         {
             findTransition(clip, allAnimations, result);
             return;
         }
 
-        var nextClipName = string.Format("A_{0}_{1}", result["action"], int.Parse(result["clip"]) + 1);
-        if (result["char"] != "")
+        var nextClipName = string.Format("A_{0}_{1}", result[action], int.Parse(result[clipNumber]) + 1);
+        if (result[character] != "")
         {
-            nextClipName = string.Format("A_{0}_{1}_{2}", result["action"], result["char"],
-                int.Parse(result["clip"]) + 1);
+            nextClipName = string.Format("A_{0}_{1}_{2}", result[action], result[character],
+                int.Parse(result[clipNumber]) + 1);
         }
 
         var nextClip = FindAnimationByName($"^{clip.Name}-", allAnimations);
@@ -173,13 +181,13 @@ public class AnimatorStatesLister : EditorWindow
         Dictionary<string, string> result)
     {
         // No nextName means transition (e.g., 01-02 -> 02)
-        if (result["nextName"] == "")
+        if (result[nextName] == "")
         {
             // Transition within the same action but different clip number
-            var nextClipName = $"A_{result["action"]}_{result["transitionTo"]}";
-            if (result["char"] != "")
+            var nextClipName = $"A_{result[action]}_{result[transitionTo]}";
+            if (result[character] != "")
             {
-                nextClipName = $"A_{result["action"]}_{result["char"]}_{result["transitionTo"]}";
+                nextClipName = $"A_{result[action]}_{result[character]}_{result[transitionTo]}";
             }
             var nextClip = FindAnimationByName($"^{nextClipName}_?A?$", allAnimations);
             if (nextClip.Equals(null))
@@ -196,10 +204,10 @@ public class AnimatorStatesLister : EditorWindow
         else
         {
             // With nextName means transition to another action (e.g., 01 -> 01-relax_01 -> relax_01)
-            var nextClipName = $"A_{result["transitionTo"]}";
-            if (result["char"] != "")
+            var nextClipName = $"A_{result[transitionTo]}";
+            if (result[character] != "")
             {
-                nextClipName = $"A_{result["transitionTo"]}_{result["char"]}";
+                nextClipName = $"A_{result[transitionTo]}_{result[character]}";
             }
             var nextClip = FindAnimationByName($"^{nextClipName}_?A?$", allAnimations);
             if (nextClip.Equals(null))
@@ -230,13 +238,13 @@ public class AnimatorStatesLister : EditorWindow
 
         return new RegexClip
         {
-            Action = match.Groups["action"].Value,
-            Char = match.Groups["char"].Value,
-            ClipNumber = match.Groups["clip"].Value,
-            Alternate = match.Groups["alternate"].Value,
-            TransitionTo = match.Groups["transitionTo"].Value,
-            NextName = match.Groups["nextName"].Value,
-            NextClip = match.Groups["nextClip"].Value
+            Action = match.Groups[action].Value,
+            Char = match.Groups[character].Value,
+            ClipNumber = match.Groups[clipNumber].Value,
+            Alternate = match.Groups[alternate].Value,
+            TransitionTo = match.Groups[transitionTo].Value,
+            NextName = match.Groups[nextName].Value,
+            NextClip = match.Groups[nextClip].Value
         };
     }
 
