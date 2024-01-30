@@ -191,6 +191,20 @@ func findAnimationByName(expression string, allAnimations []*Animation) *Animati
 	return nil
 }
 
+func filterAnimations(expression string, allAnimations []*Animation) []*Animation {
+	var filtered []*Animation
+	reg := regexp.MustCompile(expression)
+	for _, anim := range allAnimations {
+		if anim == nil {
+			continue
+		}
+		if reg.MatchString(anim.Name) {
+			filtered = append(filtered, anim)
+		}
+	}
+	return filtered
+}
+
 func atoi(str string) int {
 	i, _ := strconv.Atoi(str)
 	return i
@@ -216,34 +230,27 @@ func (clip *Animation) getAlternateAnimation(allAnimations []*Animation) {
 
 	result := make(map[string]string)
 	for i, name := range re.SubexpNames() {
-		if i != 0 && name != "" {
-			result[name] = match[i]
-		}
+		result[name] = match[i]
 	}
 
-	// Check for alternate animations
-	for _, otherClip := range allAnimations {
-		if otherClip.Name == clip.Name {
+	if result["transitionTo"] != "" {
+		// Transition animations don't have alternate animations
+		return
+	}
+
+	toFind := fmt.Sprintf("A_%s_%s", result["name"], result["clip"])
+	if result["char"] != "" {
+		toFind = fmt.Sprintf("A_%s_%s_%s", result["name"], result["char"], result["clip"])
+	}
+
+	alternates := filterAnimations(fmt.Sprintf("^%s_?[A-Z]?$", toFind), allAnimations)
+	for _, alternate := range alternates {
+		if alternate == nil {
 			continue
 		}
-
-		otherMatch := re.FindStringSubmatch(otherClip.Name)
-		if otherMatch == nil {
+		if alternate.Name == clip.Name {
 			continue
 		}
-		otherResult := make(map[string]string)
-		for i, name := range re.SubexpNames() {
-			if i != 0 && name != "" {
-				otherResult[name] = otherMatch[i]
-			}
-		}
-
-		if otherResult["name"] != result["name"] || otherResult["char"] != result["char"] || otherResult["clip"] != result["clip"] {
-			continue
-		}
-
-		if otherResult["alternate"] != "" && otherResult["alternate"] != result["alternate"] {
-			clip.AlternateAnimations = append(clip.AlternateAnimations, otherClip.Name)
-		}
+		clip.AlternateAnimations = append(clip.AlternateAnimations, alternate.Name)
 	}
 }
