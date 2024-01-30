@@ -115,6 +115,11 @@ func (clip *Animation) getNextAnimation(allAnimations []*Animation) {
 		result[name] = match[i]
 	}
 
+	if result["alternate"] != "" {
+		// Alternate clips don't have next animations, but use alternate animations instead
+		return
+	}
+
 	// Check for transition animations first
 	if result["transitionTo"] != "" {
 		// No nextName means transition (e.g., 01-02)
@@ -154,16 +159,20 @@ func (clip *Animation) getNextAnimation(allAnimations []*Animation) {
 	if result["char"] != "" {
 		nextClipName = fmt.Sprintf("A_%s_%s_%02d", result["name"], result["char"], atoi(result["clip"])+1)
 	}
-	// Check if the next clip exists
-	nextClip := findAnimationByName(fmt.Sprintf("^%s$", nextClipName), allAnimations)
+
+	// Try searching for clips with transitionTo
+	nextClip := findAnimationByName(fmt.Sprintf("^%s-", match[0]), allAnimations)
+
+	if nextClip == nil {
+		// Try searching for next clip in sequence verbatim
+		nextClip = findAnimationByName(fmt.Sprintf("^%s$", nextClipName), allAnimations)
+	}
+
 	if nextClip == nil {
 		// Try appending "A" or "_A" to the end
 		nextClip = findAnimationByName(fmt.Sprintf("^%s_?A$", nextClipName), allAnimations)
 	}
-	if nextClip == nil {
-		// Try searching for clips with transitionTo
-		nextClip = findAnimationByName(fmt.Sprintf("^%s-", match[0]), allAnimations)
-	}
+
 	if nextClip != nil {
 		clip.NextAnimations = append(clip.NextAnimations, nextClip.Name)
 	}
