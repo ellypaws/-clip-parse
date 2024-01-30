@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"slices"
 	"strconv"
 	"strings"
 )
@@ -195,15 +194,40 @@ func atoi(str string) int {
 	return i
 }
 
+// getPreviousAnimation returns the previous animation in the sequence.
+// Example: `A_intro_02` -> `A_intro_01`
+// We should not use the `A_intro_01-02` transition animation because we can't play transition animations backwards.
+// We should also not use the `A_intro_01_A` alternate animation because it's not the previous animation.
 func (clip *Animation) getPreviousAnimation(allAnimations []*Animation) {
-	for _, otherClip := range allAnimations {
-		if otherClip == nil {
-			continue
-		}
-		if slices.Contains(otherClip.NextAnimations, clip.Name) {
-			clip.PreviousAnimation = otherClip.Name
-			break
-		}
+	match := re.FindStringSubmatch(clip.Name)
+	if match == nil {
+		return
+	}
+
+	result := make(map[string]string)
+	for i, name := range re.SubexpNames() {
+		result[name] = match[i]
+	}
+
+	if result["transitionTo"] != "" {
+		// Transition animations don't have previous animations
+		return
+	}
+
+	if result["alternate"] != "" {
+		// Alternate clips don't have previous animations
+		return
+	}
+
+	previousClipName := fmt.Sprintf("A_%s_%02d", result["name"], atoi(result["clip"])-1)
+	if result["char"] != "" {
+		previousClipName = fmt.Sprintf("A_%s_%s_%02d", result["name"], result["char"], atoi(result["clip"])-1)
+	}
+
+	previousClip := findAnimationByName(fmt.Sprintf("^%s_?A?$", previousClipName), allAnimations)
+
+	if previousClip != nil {
+		clip.PreviousAnimation = previousClip.Name
 	}
 }
 
