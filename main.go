@@ -133,10 +133,10 @@ func (clip *Animation) findTransition(allAnimations []*Animation, result map[str
 	// No nextName means transition (e.g., 01-02)
 	if result["nextName"] == "" {
 		// Transition within the same group but different clip
-		nextClipName := fmt.Sprintf("A_%s_%s", result["name"], result["transitionTo"])
+		nextClipName := fmt.Sprintf("A_%s_%s", result["name"], result["nextClip"])
 		if result["char"] != "" {
 			// TODO: Change char regex to also capture the underscore so we can always attempt to concatenate
-			nextClipName = fmt.Sprintf("A_%s_%s_%s", result["name"], result["char"], result["transitionTo"])
+			nextClipName = fmt.Sprintf("A_%s_%s_%s", result["name"], result["char"], result["nextClip"])
 		}
 		nextClip := findAnimationByName(fmt.Sprintf("^%s$", nextClipName), allAnimations)
 		if nextClip == nil {
@@ -150,7 +150,10 @@ func (clip *Animation) findTransition(allAnimations []*Animation, result map[str
 	}
 
 	// With nextName (e.g., 02-relax_01)
-	nextClipName := fmt.Sprintf("A_%s_%s", result["nextName"], result["nextClip"])
+	nextClipName := fmt.Sprintf("A_%s", result["transitionTo"])
+	if result["char"] != "" {
+		nextClipName = fmt.Sprintf("A_%s_%s", result["transitionTo"], result["char"])
+	}
 	nextClip := findAnimationByName(fmt.Sprintf("^%s$", nextClipName), allAnimations)
 	if nextClip == nil {
 		// Try appending "A" or "_A" to the end
