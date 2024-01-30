@@ -74,7 +74,9 @@ public class AnimatorStatesLister : EditorWindow
                 EditorGUILayout.Space();
                 GUILayout.Label("States", EditorStyles.boldLabel);
                 // check if the action is A_`actionname`
-                ListStates(childAnimatorStates, actionNames);
+                activeClip = ListStates(childAnimatorStates, actionNames, out var statesAvailable);
+
+                ShowNextAnimation(childAnimatorStates, statesAvailable);
             }
 
             if (GUILayout.Button("Figure it out"))
@@ -94,9 +96,9 @@ public class AnimatorStatesLister : EditorWindow
         }
     }
 
-    private void ListStates(ChildAnimatorState[] childAnimatorStates, string[] actionNames)
+    private int ListStates(ChildAnimatorState[] childAnimatorStates, string[] actionNames, out IEnumerable<string> statesAvailable)
     {
-        var statesAvailable = from s in childAnimatorStates
+        statesAvailable = from s in childAnimatorStates
             where s.state.name.StartsWith("A_" + actionNames[activeAction])
             select s.state.name;
 
@@ -106,8 +108,11 @@ public class AnimatorStatesLister : EditorWindow
             GUILayout.Label(state);
         }
 
-        activeClip = EditorGUILayout.Popup("Clip", activeClip, statesAvailable.ToArray());
+        return EditorGUILayout.Popup("Clip", activeClip, statesAvailable.ToArray());
+    }
 
+    private void ShowNextAnimation(ChildAnimatorState[] childAnimatorStates, IEnumerable<string> statesAvailable)
+    {
         // put activeClip in AnimationTransition class and call GetNextAnimation
         var clip = new AnimationTransition
         {
