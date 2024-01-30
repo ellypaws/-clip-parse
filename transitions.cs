@@ -35,7 +35,7 @@ public class AnimatorStatesLister : EditorWindow
     private const string transitionTo = "transitionTo";
     private const string nextName = "nextName";
     private const string nextClip = "nextClip";
-    
+
     private string[] statuses = { };
     private AnimatorController activeController;
     private int activeLayer = 0;
@@ -62,45 +62,19 @@ public class AnimatorStatesLister : EditorWindow
             GUILayout.Label("Controller Name");
             GUILayout.TextField(activeController.name);
 
-            var layers = from l in activeController.layers select l.name;
-            activeLayer = EditorGUILayout.Popup("Layer", activeLayer, layers.ToArray());
-            var layer = activeController.layers[activeLayer];
+            var layer = LayerSelection();
 
-            var stateMachines = from s in layer.stateMachine.stateMachines select s.stateMachine.name;
-            var stateMachinesArray = stateMachines.ToArray();
-            ArrayUtility.Insert(ref stateMachinesArray, 0, "Root");
-            activeStateMachine = EditorGUILayout.Popup("State Machine", activeStateMachine, stateMachinesArray);
+            activeStateMachine = StateMachineSelection(layer);
 
             // Enumerate actions where we grab from A_`actionname`_01_B and list unique action names
-            var childAnimatorStates = activeStateMachine == 0
-                ? layer.stateMachine.states
-                : layer.stateMachine.stateMachines[activeStateMachine - 1].stateMachine.states;
-            var actions = from s in childAnimatorStates select s.state.name.Split('_').Skip(1).Take(1);
-            var actionNames = actions.SelectMany(x => x).Distinct().ToArray();
-            activeAction = EditorGUILayout.Popup("Action", activeAction, actionNames);
+            var childAnimatorStates = ActionsSlections(layer, out var actionNames);
 
-            // check if the action is A_`actionname`
-            var statesAvailable = from s in childAnimatorStates
-                where s.state.name.StartsWith("A_" + actionNames[activeAction])
-                select s.state.name;
-            foreach (var state in statesAvailable)
+            if (actionNames.Length > 0)
             {
-                // scrollable list of states
-                GUILayout.Label(state);
-            }
-
-            activeClip = EditorGUILayout.Popup("Clip", activeClip, statesAvailable.ToArray());
-
-            // put activeClip in AnimationTransition class and call GetNextAnimation
-            var clip = new AnimationTransition
-            {
-                Name = statesAvailable.ElementAt(activeClip)
-            };
-            GetNextAnimation(clip, childAnimatorStates);
-            GUILayout.Label("Next Animations");
-            foreach (var nextAnimation in clip.NextAnimations)
-            {
-                GUILayout.Label(nextAnimation);
+                EditorGUILayout.Space();
+                GUILayout.Label("States", EditorStyles.boldLabel);
+                // check if the action is A_`actionname`
+                ListStates(childAnimatorStates, actionNames);
             }
 
             if (GUILayout.Button("Figure it out"))
@@ -120,8 +94,65 @@ public class AnimatorStatesLister : EditorWindow
         }
     }
 
+    private void ListStates(ChildAnimatorState[] childAnimatorStates, string[] actionNames)
+    {
+        var statesAvailable = from s in childAnimatorStates
+            where s.state.name.StartsWith("A_" + actionNames[activeAction])
+            select s.state.name;
 
-    private void GetNextAnimation(AnimationTransition clip, ChildAnimatorState[] allAnimations)
+        foreach (var state in statesAvailable)
+        {
+            // scrollable list of states
+            GUILayout.Label(state);
+        }
+
+        activeClip = EditorGUILayout.Popup("Clip", activeClip, statesAvailable.ToArray());
+
+        // put activeClip in AnimationTransition class and call GetNextAnimation
+        var clip = new AnimationTransition
+        {
+            Name = statesAvailable.ElementAt(activeClip)
+        };
+        nextAnimation(clip, childAnimatorStates);
+        GUILayout.Label("Next Animations");
+        foreach (var nextAnimation in clip.NextAnimations)
+        {
+            GUILayout.Label(nextAnimation);
+        }
+    }
+
+    private ChildAnimatorState[] ActionsSlections(AnimatorControllerLayer layer, out string[] actionNames)
+    {
+        var childAnimatorStates = activeStateMachine == 0
+            ? layer.stateMachine.states
+            : layer.stateMachine.stateMachines[activeStateMachine - 1].stateMachine.states;
+        var actions = from s in childAnimatorStates select s.state.name.Split('_').Skip(1).Take(1);
+        actionNames = actions.SelectMany(x => x).Distinct().ToArray();
+        if (actionNames.Length > 0)
+        {
+            activeAction = EditorGUILayout.Popup("Action", activeAction, actionNames);
+        }
+
+        return childAnimatorStates;
+    }
+
+    private int StateMachineSelection(AnimatorControllerLayer layer)
+    {
+        var stateMachines = from s in layer.stateMachine.stateMachines select s.stateMachine.name;
+        var stateMachinesArray = stateMachines.ToArray();
+        ArrayUtility.Insert(ref stateMachinesArray, 0, "Root");
+        return EditorGUILayout.Popup("State Machine", activeStateMachine, stateMachinesArray);
+    }
+
+    private AnimatorControllerLayer LayerSelection()
+    {
+        var layers = from l in activeController.layers select l.name;
+        activeLayer = EditorGUILayout.Popup("Layer", activeLayer, layers.ToArray());
+        return activeController.layers[activeLayer];
+    }
+
+
+    private void nextAnimation(AnimationTransition clip, ChildAnimatorState[] allAnimations)
     {
         var pattern =
             @"A_(?<action>[a-z]+)_(?<char>[A-Z]?)_?(?<clip>\d{2})_?(?<alternate>[A-Z]?)?-?(?<transitionTo>(?<nextName>[a-z]+)?_?(?<nextClip>\d{2}))?";
@@ -189,12 +220,14 @@ public class AnimatorStatesLister : EditorWindow
             {
                 nextClipName = $"A_{result[action]}_{result[character]}_{result[transitionTo]}";
             }
+
             var nextClip = FindAnimationByName($"^{nextClipName}_?A?$", allAnimations);
             if (nextClip.Equals(null))
             {
                 // Try appending "A" or "_A" to the end (e.g., 01 -> 02, 01 -> 02A, 01 -> 02_A)
                 nextClip = FindAnimationByName($"^{nextClipName}_?A$", allAnimations);
             }
+
             if (!nextClip.Equals(null))
             {
                 // append to clip.NextAnimations
@@ -209,6 +242,7 @@ public class AnimatorStatesLister : EditorWindow
             {
                 nextClipName = $"A_{result[transitionTo]}_{result[character]}";
             }
+
             var nextClip = FindAnimationByName($"^{nextClipName}_?A?$", allAnimations);
             if (nextClip.Equals(null))
             {
@@ -216,7 +250,6 @@ public class AnimatorStatesLister : EditorWindow
                 nextClip = FindAnimationByName($"^{nextClipName}_?A$", allAnimations);
             }
         }
-
     }
 
     private void DoSomething(AnimatorControllerLayer layer)
