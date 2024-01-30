@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -184,6 +185,18 @@ func findAnimationByName(expression string, allAnimations []*Animation) *Animati
 func atoi(str string) int {
 	i, _ := strconv.Atoi(str)
 	return i
+}
+
+func (clip *Animation) getPreviousAnimation(allAnimations []*Animation) {
+	for _, otherClip := range allAnimations {
+		if otherClip == nil {
+			continue
+		}
+		if slices.Contains(otherClip.NextAnimations, clip.Name) {
+			clip.PreviousAnimation = otherClip.Name
+			break
+		}
+	}
 }
 
 func (clip *Animation) getAlternateAnimation(allAnimations []*Animation) {
