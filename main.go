@@ -127,7 +127,7 @@ func (clip *Animation) getNextAnimation(allAnimations []*Animation) {
 	}
 
 	// Try searching for clips with transitionTo (e.g., 01 -> 01-02)
-	nextClip := findAnimationByName(fmt.Sprintf("^%s-", match[0]), allAnimations)
+	nextClip := findAnimationByName(fmt.Sprintf("^%s-", strings.TrimSuffix(match[0], "_A")), allAnimations)
 
 	if nextClip == nil {
 		// Try appending "A" or "_A" to the end (e.g., 01 -> 02, 01 -> 02A, 01 -> 02_A)

@@ -157,6 +157,7 @@ public class AnimatorStatesLister : EditorWindow
             {
                 continue;
             }
+
             state.state.behaviours = behaviors;
         }
     }
@@ -325,7 +326,7 @@ public class AnimatorStatesLister : EditorWindow
             nextClipName = $"A_{result[action]}_{result[character]}_{(int.Parse(result[clipNumber]) + 1):D2}";
         }
 
-        var nextClip = FindAnimationByName($"^{clip.Name}-", available);
+        var nextClip = FindAnimationByName($"^{clip.Name.TrimEnd('A').TrimEnd('_')}-", available);
 
         if (nextClip.Equals(null))
         {
