@@ -267,9 +267,9 @@ public class AnimatorStatesLister : EditorWindow
 
         var result = match.Groups.Cast<Group>().ToDictionary(g => g.Name, g => g.Value);
 
-        if (result[alternate] != "")
+        if (result[alternate] != "" && result[alternate] != "A")
         {
-            // Alternate clips don't have previous animations
+            // Alternate clips don't have previous animations unless it's the first clip (A)
             return;
         }
 

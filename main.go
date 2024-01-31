@@ -227,8 +227,8 @@ func (clip *Animation) getPreviousAnimation(allAnimations []*Animation) {
 		return
 	}
 
-	if result[alternate] != "" {
-		// Alternate clips don't have previous animations
+	if result[alternate] != "" && result[alternate] != "A" {
+		// Alternate clips don't have previous animations unless it's the first clip (A)
 		return
 	}
 
