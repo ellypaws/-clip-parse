@@ -110,8 +110,8 @@ func (clip *Animation) getNextAnimation(allAnimations []*Animation) {
 		result[name] = match[i]
 	}
 
-	if result[alternate] != "" {
-		// Alternate clips don't have next animations, but use alternate animations instead
+	if result[alternate] != "" && result[alternate] != "A" {
+		// Alternate clips don't have next animations, but use alternate animations instead unless it's the first clip (A)
 		return
 	}
 
