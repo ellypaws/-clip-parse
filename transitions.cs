@@ -525,6 +525,14 @@ public class AnimatorStatesLister : EditorWindow
                             FindAnimationByName($"^{nextAnimation}$", statesAvailable);
                         if (!findAnimationByName.Equals(null) && findAnimationByName.GetValueOrDefault().state != null)
                         {
+                            // check if clip already has a transition to nextAnimation with nextParameter
+                            if (state.transitions.ToList().Any(x =>
+                                    x.destinationState == findAnimationByName.Value.state &&
+                                    x.conditions.Any(y => y.parameter == nextParameter.name)))
+                            {
+                                continue;
+                            }
+
                             var transition =
                                 state.AddTransition(findAnimationByName.GetValueOrDefault().state);
                             transition.AddCondition(AnimatorConditionMode.If, 0, nextParameter.name);
@@ -543,6 +551,14 @@ public class AnimatorStatesLister : EditorWindow
                         statesAvailable);
                     if (!findAnimationByName.Equals(null) && findAnimationByName.GetValueOrDefault().state != null)
                     {
+                        // check if clip already has a transition to previousAnimation with previousParameter
+                        if (state.transitions.ToList().Any(x =>
+                                x.destinationState == findAnimationByName.Value.state &&
+                                x.conditions.Any(y => y.parameter == previousParameter.name)))
+                        {
+                            continue;
+                        }
+
                         var transition =
                             state.AddTransition(findAnimationByName.GetValueOrDefault().state);
                         transition.AddCondition(AnimatorConditionMode.If, 0, previousParameter.name);
@@ -563,6 +579,14 @@ public class AnimatorStatesLister : EditorWindow
                             statesAvailable);
                         if (!findAnimationByName.Equals(null) && findAnimationByName.GetValueOrDefault().state != null)
                         {
+                            // check if clip already has a transition to alt with nextParameter
+                            if (state.transitions.ToList().Any(x =>
+                                    x.destinationState == findAnimationByName.Value.state &&
+                                    x.conditions.Any(y => y.parameter == nextParameter.name)))
+                            {
+                                continue;
+                            }
+
                             var transition =
                                 state.AddTransition(findAnimationByName.GetValueOrDefault().state);
                             transition.AddCondition(AnimatorConditionMode.If, 0, nextParameter.name);
