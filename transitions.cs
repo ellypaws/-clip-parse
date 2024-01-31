@@ -153,6 +153,10 @@ public class AnimatorStatesLister : EditorWindow
         var behaviors = clip.state.behaviours;
         foreach (var state in statesAvailable)
         {
+            if (state.state.name.Contains("-"))
+            {
+                continue;
+            }
             state.state.behaviours = behaviors;
         }
     }
