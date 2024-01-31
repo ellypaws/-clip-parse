@@ -7,6 +7,7 @@ using UnityEditor;
 using System.Linq;
 using UnityEditor.Animations;
 using System.Text.RegularExpressions;
+using JetBrains.Annotations;
 using Object = UnityEngine.Object;
 
 public class RegexClip
@@ -82,6 +83,7 @@ public class AnimatorStatesLister : EditorWindow
 
                 ShowNextAnimation(statesAvailable);
                 ShowPreviousAnimation(statesAvailable);
+                ShowAlternateAnimations(statesAvailable);
 
                 ShowAvailableConditions();
 
@@ -145,6 +147,20 @@ public class AnimatorStatesLister : EditorWindow
         };
         previousAnimation(clip, statesAvailable.ToArray());
         GUILayout.Label("Previous Animation: " + (clip.PreviousAnimation != null ? clip.PreviousAnimation : "None"));
+    }
+
+    private void ShowAlternateAnimations(ChildAnimatorState[] statesAvailable)
+    {
+        // put activeClip in AnimationTransition class and call GetNextAnimation
+        var clip = new AnimationTransition
+        {
+            Name = statesAvailable.ElementAt(activeClip).state.name
+        };
+        alternateAnimations(clip, statesAvailable.ToArray());
+        GUILayout.Label("Alternate Animations: " +
+                        ((clip.AlternateAnimations != null && clip.AlternateAnimations.Length > 0)
+                            ? string.Join(", ", clip.AlternateAnimations)
+                            : "None"));
     }
 
     // ShowAvailableConditions shows the available Parameters and Conditions of the controller as a dropdown
@@ -289,6 +305,12 @@ public class AnimatorStatesLister : EditorWindow
         return allAnimations.FirstOrDefault(x => Regex.IsMatch(x.state.name, expression));
     }
 
+    [CanBeNull]
+    private ChildAnimatorState[] FilterAnimations(string expression, ChildAnimatorState[] allAnimations)
+    {
+        return allAnimations.Where(x => Regex.IsMatch(x.state.name, expression)).ToArray();
+    }
+
     // findTransition finds the next animation based on the transitionTo field.
     private void findTransition(AnimationTransition clip, ChildAnimatorState[] allAnimations,
         Dictionary<string, string> result)
@@ -334,6 +356,55 @@ public class AnimatorStatesLister : EditorWindow
         }
     }
 
+    private void alternateAnimations(AnimationTransition clip, ChildAnimatorState[] available)
+    {
+        var match = Regex.Match(clip.Name, Pattern);
+
+        if (!match.Success)
+        {
+            // debug to unity console
+            Debug.Log("No match found for " + clip.Name);
+            return;
+        }
+
+        var result = match.Groups.Cast<Group>().ToDictionary(g => g.Name, g => g.Value);
+
+        if (result[transitionTo] != "")
+        {
+            // Transition animations don't have alternate animations
+            return;
+        }
+
+        var toFind = $"A_{result[action]}_{result[clipNumber]}";
+        if (result[character] != "")
+        {
+            toFind = $"A_{result[action]}_{result[character]}_{result[clipNumber]}";
+        }
+
+        var altClips = FilterAnimations($"^{toFind}_?[A-Z]?$", available);
+
+        if (altClips == null || altClips.Length == 0)
+        {
+            // No alternate animations found
+            return;
+        }
+
+        foreach (var alt in altClips)
+        {
+            if (alt.state.name == clip.Name)
+            {
+                continue;
+            }
+
+            if (clip.AlternateAnimations == null)
+            {
+                clip.AlternateAnimations = Array.Empty<string>();
+            }
+
+            clip.AlternateAnimations = clip.AlternateAnimations.Append(alt.state.name).ToArray();
+        }
+    }
+
     private void ClearTransitions(ChildAnimatorState[] statesAvailable)
     {
         statesAvailable.ToList().ForEach(x => x.state.transitions = Array.Empty<AnimatorStateTransition>());
@@ -357,6 +428,7 @@ public class AnimatorStatesLister : EditorWindow
 
             nextAnimation(clip, statesAvailable);
             previousAnimation(clip, statesAvailable);
+            alternateAnimations(clip, statesAvailable);
 
             if (clip.NextAnimations.Count > 0 && nextParameter != null)
             {
@@ -384,6 +456,26 @@ public class AnimatorStatesLister : EditorWindow
                     var transition =
                         state.state.AddTransition(findAnimationByName.GetValueOrDefault().state);
                     transition.AddCondition(AnimatorConditionMode.If, 0, previousParameter.name);
+                }
+            }
+
+            // Set alternate animations back and forth with nextParameter and previousParameter to cycle through them all
+            if (clip.AlternateAnimations != null && clip.AlternateAnimations.Length > 0)
+            {
+                foreach (var alt in clip.AlternateAnimations)
+                {
+                    // Set the transition
+                    ChildAnimatorState? findAnimationByName = FindAnimationByName($"^{alt}$",
+                        statesAvailable);
+                    if (!findAnimationByName.Equals(null) && findAnimationByName.GetValueOrDefault().state != null)
+                    {
+                        var transition =
+                            state.state.AddTransition(findAnimationByName.GetValueOrDefault().state);
+                        transition.AddCondition(AnimatorConditionMode.If, 0, nextParameter.name);
+
+                        transition = findAnimationByName.Value.state.AddTransition(state.state);
+                        transition.AddCondition(AnimatorConditionMode.If, 0, previousParameter.name);
+                    }
                 }
             }
         }
