@@ -502,9 +502,6 @@ public class AnimatorStatesLister : EditorWindow
         var nextParameter = activeController.parameters[activeNextParameter];
         var previousParameter = activeController.parameters[activePreviousParameter];
 
-        // Get the selected transition
-        var selectedTransition = activeController.parameters[activeNextParameter];
-
         foreach (var s in statesAvailable)
         {
             var state = s.state;
@@ -516,28 +513,9 @@ public class AnimatorStatesLister : EditorWindow
             if (setNextAnimation)
             {
                 nextAnimation(clip, statesAvailable);
-                if (clip.NextAnimations.Count > 0 && nextParameter != null)
+                foreach (var next in clip.NextAnimations)
                 {
-                    foreach (var nextAnimation in clip.NextAnimations)
-                    {
-                        // Set the transition
-                        ChildAnimatorState? findAnimationByName =
-                            FindAnimationByName($"^{nextAnimation}$", statesAvailable);
-                        if (!findAnimationByName.Equals(null) && findAnimationByName.GetValueOrDefault().state != null)
-                        {
-                            // check if clip already has a transition to nextAnimation with nextParameter
-                            if (state.transitions.ToList().Any(x =>
-                                    x.destinationState == findAnimationByName.Value.state &&
-                                    x.conditions.Any(y => y.parameter == nextParameter.name)))
-                            {
-                                continue;
-                            }
-
-                            var transition =
-                                state.AddTransition(findAnimationByName.GetValueOrDefault().state);
-                            transition.AddCondition(AnimatorConditionMode.If, 0, nextParameter.name);
-                        }
-                    }
+                    AddTransition(next, state, nextParameter, statesAvailable);
                 }
             }
 
@@ -546,59 +524,43 @@ public class AnimatorStatesLister : EditorWindow
                 previousAnimation(clip, statesAvailable);
                 if (!String.IsNullOrEmpty(clip.PreviousAnimation) && previousParameter != null)
                 {
-                    // Set the transition
-                    ChildAnimatorState? findAnimationByName = FindAnimationByName($"^{clip.PreviousAnimation}$",
-                        statesAvailable);
-                    if (!findAnimationByName.Equals(null) && findAnimationByName.GetValueOrDefault().state != null)
-                    {
-                        // check if clip already has a transition to previousAnimation with previousParameter
-                        if (state.transitions.ToList().Any(x =>
-                                x.destinationState == findAnimationByName.Value.state &&
-                                x.conditions.Any(y => y.parameter == previousParameter.name)))
-                        {
-                            continue;
-                        }
-
-                        var transition =
-                            state.AddTransition(findAnimationByName.GetValueOrDefault().state);
-                        transition.AddCondition(AnimatorConditionMode.If, 0, previousParameter.name);
-                    }
+                    AddTransition(clip.PreviousAnimation, state, previousParameter, statesAvailable);
                 }
             }
 
-            // Set alternate animations back and forth with nextParameter and previousParameter to cycle through them all
             if (setAlternateAnimations)
             {
                 alternateAnimations(clip, statesAvailable);
-                if (clip.AlternateAnimations != null && clip.AlternateAnimations.Length > 0)
+                if (clip.AlternateAnimations != null)
                 {
                     foreach (var alt in clip.AlternateAnimations)
                     {
-                        // Set the transition
-                        ChildAnimatorState? findAnimationByName = FindAnimationByName($"^{alt}$",
-                            statesAvailable);
-                        if (!findAnimationByName.Equals(null) && findAnimationByName.GetValueOrDefault().state != null)
-                        {
-                            // check if clip already has a transition to alt with nextParameter
-                            if (state.transitions.ToList().Any(x =>
-                                    x.destinationState == findAnimationByName.Value.state &&
-                                    x.conditions.Any(y => y.parameter == nextParameter.name)))
-                            {
-                                continue;
-                            }
-
-                            var transition =
-                                state.AddTransition(findAnimationByName.GetValueOrDefault().state);
-                            transition.AddCondition(AnimatorConditionMode.If, 0, nextParameter.name);
-
-                            // transition = findAnimationByName.Value.state.AddTransition(state.state);
-                            // transition.AddCondition(AnimatorConditionMode.If, 0, previousParameter.name);
-                        }
+                        AddTransition(alt, state, nextParameter, statesAvailable);
                     }
                 }
             }
         }
     }
+
+    private void AddTransition(string animationName, AnimatorState state, AnimatorControllerParameter parameter,
+        ChildAnimatorState[] statesAvailable)
+    {
+        ChildAnimatorState? findAnimationByName = FindAnimationByName($"^{animationName}$", statesAvailable);
+        if (!findAnimationByName.Equals(null) && findAnimationByName.GetValueOrDefault().state != null)
+        {
+            // check if state already has a transition to findAnimationByName with parameter
+            if (!state.transitions.ToList().Any(x =>
+                    x.destinationState == findAnimationByName.Value.state &&
+                    x.conditions.Any(y => y.parameter == parameter.name)))
+            {
+                var transition = state.AddTransition(findAnimationByName.GetValueOrDefault().state);
+                transition.AddCondition(AnimatorConditionMode.If, 0, parameter.name);
+                transition.hasExitTime = true;
+                transition.duration = 0.25f;
+            }
+        }
+    }
+
 
     public RegexClip ParseClipName(string clipName)
     {
