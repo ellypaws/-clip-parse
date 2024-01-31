@@ -360,20 +360,25 @@ public class AnimatorStatesLister : EditorWindow
 
             if (clip.NextAnimations.Count > 0 && nextParameter != null)
             {
-                // Set the transition
-                ChildAnimatorState? findAnimationByName = FindAnimationByName(clip.NextAnimations[0], statesAvailable);
-                if (!findAnimationByName.Equals(null) && findAnimationByName.GetValueOrDefault().state != null)
+                foreach (var nextAnimation in clip.NextAnimations)
                 {
-                    var transition =
-                        state.state.AddTransition(findAnimationByName.GetValueOrDefault().state);
-                    transition.AddCondition(AnimatorConditionMode.If, 0, nextParameter.name);
+                    // Set the transition
+                    ChildAnimatorState? findAnimationByName =
+                        FindAnimationByName($"^{nextAnimation}$", statesAvailable);
+                    if (!findAnimationByName.Equals(null) && findAnimationByName.GetValueOrDefault().state != null)
+                    {
+                        var transition =
+                            state.state.AddTransition(findAnimationByName.GetValueOrDefault().state);
+                        transition.AddCondition(AnimatorConditionMode.If, 0, nextParameter.name);
+                    }
                 }
             }
 
             if (!String.IsNullOrEmpty(clip.PreviousAnimation) && previousParameter != null)
             {
                 // Set the transition
-                ChildAnimatorState? findAnimationByName = FindAnimationByName(clip.PreviousAnimation, statesAvailable);
+                ChildAnimatorState? findAnimationByName = FindAnimationByName($"^{clip.PreviousAnimation}$",
+                    statesAvailable);
                 if (!findAnimationByName.Equals(null) && findAnimationByName.GetValueOrDefault().state != null)
                 {
                     var transition =
