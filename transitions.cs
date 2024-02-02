@@ -260,14 +260,17 @@ public class AnimatorStatesLister : EditorWindow
         var actionNames = (from s in childAnimatorStates select s.state.name.Split('_').Skip(1).Take(1))
             .SelectMany(x => x)
             .Distinct().ToArray();
+        ArrayUtility.Insert(ref actionNames, 0, "All");
         if (actionNames.Length > 0)
         {
             activeAction = EditorGUILayout.Popup("Action", activeAction, actionNames);
         }
 
-        return (from s in allStates
-            where s.state.name.StartsWith($"A_{actionNames[activeAction]}")
-            select s).ToArray();
+        return activeAction == 0
+            ? allStates.ToArray()
+            : (from s in allStates
+                where s.state.name.StartsWith($"A_{actionNames[activeAction]}")
+                select s).ToArray();
     }
 
     private AnimatorStateMachine StateMachineSelection(AnimatorControllerLayer layer)
