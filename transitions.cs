@@ -55,6 +55,8 @@ public class AnimatorStatesLister : EditorWindow
     private bool setPreviousAnimation = true;
     private bool setAlternateAnimations = true;
 
+    private Vector2 scrollPosition;
+
     [MenuItem("Tools/Elly/Animator States Lister")]
     public static void ShowWindow()
     {
@@ -63,6 +65,7 @@ public class AnimatorStatesLister : EditorWindow
 
     void OnGUI()
     {
+        scrollPosition = GUILayout.BeginScrollView(scrollPosition, GUILayout.ExpandHeight(true));
         if (GUILayout.Button("List States"))
         {
             EditorGUILayout.HelpBox("Loading States", MessageType.Info);
@@ -138,6 +141,7 @@ public class AnimatorStatesLister : EditorWindow
                 GUILayout.Label(status);
             }
         }
+        GUILayout.EndScrollView();
     }
 
     private void ClearBehaviors(ChildAnimatorState[] statesAvailable)
@@ -182,6 +186,7 @@ public class AnimatorStatesLister : EditorWindow
         return clip;
     }
 
+    private Vector2 statesScrollPosition;
     private ChildAnimatorState ListStates(ChildAnimatorState[] statesAvailable)
     {
         // Initialize toggles array if it's not already initialized
@@ -190,11 +195,12 @@ public class AnimatorStatesLister : EditorWindow
             stateToggles = Enumerable.Repeat(true, statesAvailable.Length).ToArray();
         }
 
+        statesScrollPosition = GUILayout.BeginScrollView(statesScrollPosition, GUILayout.ExpandHeight(true));
         for (var i = 0; i < statesAvailable.Length; i++)
         {
-            // scrollable list of states with checkboxes
             stateToggles[i] = GUILayout.Toggle(stateToggles.ElementAt(i), statesAvailable.ElementAt(i).state.name);
         }
+        GUILayout.EndScrollView();
 
         activeClip = EditorGUILayout.Popup("Clip", activeClip, statesAvailable.Select(x => x.state.name).ToArray());
         return statesAvailable[activeClip];
