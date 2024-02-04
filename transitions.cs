@@ -82,7 +82,7 @@ public class AnimatorStatesLister : EditorWindow
             var stateMachine = StateMachineSelection(layer);
 
             // Enumerate actions where we grab from A_`actionname`_01_B and list unique action names
-            var statesAvailable = ActionsSlections(layer);
+            var statesAvailable = ActionsSelections(layer);
 
             if (statesAvailable.Length > 0)
             {
@@ -254,7 +254,7 @@ public class AnimatorStatesLister : EditorWindow
             EditorGUILayout.Popup("Previous Trigger", activePreviousParameter, parameters.ToArray());
     }
 
-    private ChildAnimatorState[] ActionsSlections(AnimatorControllerLayer layer)
+    private ChildAnimatorState[] ActionsSelections(AnimatorControllerLayer layer)
     {
         var childAnimatorStates = activeStateMachine == 0
             ? layer.stateMachine.states
