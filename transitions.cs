@@ -413,19 +413,13 @@ public class AnimatorStatesLister : EditorWindow
             var nextClipName = $"A_{result[action]}_{result[transitionTo]}";
             if (result[character] != "")
             {
-                nextClipName = $"A_{result[action]}_{result[character]}_{result[transitionTo]}";
+                nextClipName = $"A_{result[action]}_?{result[character]}?_{result[transitionTo]}";
             }
 
             var nextClip = FindAnimationByName($"^{nextClipName}_?A?$", allAnimations);
-            if (nextClip.Equals(null))
-            {
-                // Try appending "A" or "_A" to the end (e.g., 01 -> 02, 01 -> 02A, 01 -> 02_A)
-                nextClip = FindAnimationByName($"^{nextClipName}_?A$", allAnimations);
-            }
 
-            if (!nextClip.Equals(null))
+            if (nextClip.HasValue && nextClip.Value.state != null)
             {
-                // append to clip.NextAnimations
                 clip.NextAnimations.Add(nextClip.GetValueOrDefault().state.name);
             }
         }
@@ -433,16 +427,12 @@ public class AnimatorStatesLister : EditorWindow
         {
             // With nextName means transition to another action (e.g., 01 -> 01-relax_01 -> relax_01)
             var nextClipName = $"A_{result[transitionTo]}";
-            if (result[character] != "")
-            {
-                nextClipName = $"A_{result[transitionTo]}_{result[character]}";
-            }
 
             var nextClip = FindAnimationByName($"^{nextClipName}_?A?$", allAnimations);
-            if (nextClip.Equals(null))
+
+            if (nextClip.HasValue && nextClip.Value.state != null)
             {
-                // Try appending "A" or "_A" to the end (e.g., 01 -> 02, 01 -> 02A, 01 -> 02_A)
-                nextClip = FindAnimationByName($"^{nextClipName}_?A$", allAnimations);
+                clip.NextAnimations.Add(nextClip.Value.state.name);
             }
         }
     }
