@@ -335,18 +335,16 @@ public class AnimatorStatesLister : EditorWindow
             nextClipName = $"A_{result[action]}_{result[character]}_{(int.Parse(result[clipNumber]) + 1):D2}";
         }
 
-        var nextClip = FindAnimationByName($"^{clip.Name.TrimEnd('A').TrimEnd('_')}-", available);
-
-        if (nextClip.Equals(null))
+        if (!TryFindAnimationByName($"^{clip.Name.TrimEnd('A').TrimEnd('_')}-", available, out var nextClip))
         {
             // Try appending "A" or "_A" to the end (e.g., 01 -> 02, 01 -> 02A, 01 -> 02_A)
-            nextClip = FindAnimationByName($"^{nextClipName}_?A?$", available);
+            TryFindAnimationByName($"^{nextClipName}_?A?$", available, out nextClip);
         }
 
-        if (nextClip.HasValue && nextClip.Value.state != null)
+        if (nextClip.state != null)
         {
             // append to clip.NextAnimations
-            clip.NextAnimations.Add(nextClip.GetValueOrDefault().state.name);
+            clip.NextAnimations.Add(nextClip.state.name);
         }
     }
 
@@ -382,21 +380,27 @@ public class AnimatorStatesLister : EditorWindow
             previousClipName = $"A_{result[action]}_{result[character]}_{(int.Parse(result[clipNumber]) - 1):D2}";
         }
 
-        var previousClip = FindAnimationByName($"^{previousClipName}_?A?$", available);
-
-        // Check if previousClip has a value and its state is not null
-        if (previousClip.HasValue && previousClip.Value.state != null)
+        if (TryFindAnimationByName($"^{previousClipName}_?A?$", available, out var previousClip))
         {
-            clip.PreviousAnimation = previousClip.Value.state.name;
+            clip.PreviousAnimation = previousClip.state.name;
         }
     }
 
-    private ChildAnimatorState? FindAnimationByName(string expression, ChildAnimatorState[] allAnimations)
+    [Obsolete("Use TryFindAnimationByName instead", false)]
+    private ChildAnimatorState FindAnimationByName(string expression, ChildAnimatorState[] allAnimations)
     {
         return allAnimations.FirstOrDefault(x => Regex.IsMatch(x.state.name, expression));
     }
 
-    [CanBeNull]
+    private bool TryFindAnimationByName(string expression, ChildAnimatorState[] allAnimations,
+        out ChildAnimatorState result)
+    {
+        result = allAnimations.FirstOrDefault(x => Regex.IsMatch(x.state.name, expression));
+        return result.state != null;
+    }
+
+
+[CanBeNull]
     private ChildAnimatorState[] FilterAnimations(string expression, ChildAnimatorState[] allAnimations)
     {
         return allAnimations.Where(x => Regex.IsMatch(x.state.name, expression)).ToArray();
@@ -416,11 +420,9 @@ public class AnimatorStatesLister : EditorWindow
                 nextClipName = $"A_{result[action]}_?{result[character]}?_{result[transitionTo]}";
             }
 
-            var nextClip = FindAnimationByName($"^{nextClipName}_?A?$", allAnimations);
-
-            if (nextClip.HasValue && nextClip.Value.state != null)
+            if (TryFindAnimationByName($"^{nextClipName}_?A?$", allAnimations, out var nextClip) && nextClip.state != null)
             {
-                clip.NextAnimations.Add(nextClip.GetValueOrDefault().state.name);
+                clip.NextAnimations.Add(nextClip.state.name);
             }
         }
         else
@@ -428,11 +430,10 @@ public class AnimatorStatesLister : EditorWindow
             // With nextName means transition to another action (e.g., 01 -> 01-relax_01 -> relax_01)
             var nextClipName = $"A_{result[transitionTo]}";
 
-            var nextClip = FindAnimationByName($"^{nextClipName}_?A?$", allAnimations);
-
-            if (nextClip.HasValue && nextClip.Value.state != null)
+            if (TryFindAnimationByName($"^{nextClipName}_?A?$", allAnimations, out var nextClip) &&
+                nextClip.state != null)
             {
-                clip.NextAnimations.Add(nextClip.Value.state.name);
+                clip.NextAnimations.Add(nextClip.state.name);
             }
         }
     }
@@ -544,15 +545,14 @@ public class AnimatorStatesLister : EditorWindow
     private void AddTransition(string animationName, AnimatorState state, AnimatorControllerParameter parameter,
         ChildAnimatorState[] statesAvailable)
     {
-        ChildAnimatorState? findAnimationByName = FindAnimationByName($"^{animationName}$", statesAvailable);
-        if (!findAnimationByName.Equals(null) && findAnimationByName.GetValueOrDefault().state != null)
+        if (TryFindAnimationByName($"^{animationName}$", statesAvailable, out var clip))
         {
             // check if state already has a transition to findAnimationByName with parameter
             if (!state.transitions.ToList().Any(x =>
-                    x.destinationState == findAnimationByName.Value.state &&
+                    x.destinationState == clip.state &&
                     x.conditions.Any(y => y.parameter == parameter.name)))
             {
-                var transition = state.AddTransition(findAnimationByName.GetValueOrDefault().state);
+                var transition = state.AddTransition(clip.state);
                 transition.AddCondition(AnimatorConditionMode.If, 0, parameter.name);
                 transition.hasExitTime = true;
                 transition.duration = 0.25f;
