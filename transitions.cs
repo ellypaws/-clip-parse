@@ -79,21 +79,21 @@ public class AnimatorStatesLister : EditorWindow
 
             var layer = LayerSelection();
 
-            var stateMachine = StateMachineSelection(layer);
+            var availableStates = StateMachineSelection(layer, null);
 
             // Enumerate actions where we grab from A_`actionname`_01_B and list unique action names
-            var statesAvailable = ActionsSelections(layer);
+            var statesFromActions = ActionsSelections(availableStates);
 
-            if (statesAvailable.Length > 0)
+            if (statesFromActions.Length > 0)
             {
                 EditorGUILayout.Space();
                 GUILayout.Label("States", EditorStyles.boldLabel);
                 // check if the action is A_`actionname`
-                var clip = ListStates(statesAvailable);
+                var clip = ListStates(statesFromActions);
 
-                ShowNextAnimation(statesAvailable);
-                ShowPreviousAnimation(statesAvailable);
-                ShowAlternateAnimations(statesAvailable);
+                ShowNextAnimation(statesFromActions);
+                ShowPreviousAnimation(statesFromActions);
+                ShowAlternateAnimations(statesFromActions);
                 ShowBehaviors(clip);
 
                 ShowAvailableConditions();
@@ -104,8 +104,8 @@ public class AnimatorStatesLister : EditorWindow
                 setPreviousAnimation = EditorGUILayout.Toggle("Set Previous Animation", setPreviousAnimation);
                 setAlternateAnimations = EditorGUILayout.Toggle("Set Alternate Animations", setAlternateAnimations);
 
-                var statesActive = (from s in statesAvailable
-                    where stateToggles.ElementAt(statesAvailable.ToList().IndexOf(s))
+                var statesActive = (from s in statesFromActions
+                    where stateToggles.ElementAt(statesFromActions.ToList().IndexOf(s))
                     select s).ToArray();
 
                 if (GUILayout.Button("Set Transition"))
@@ -141,6 +141,7 @@ public class AnimatorStatesLister : EditorWindow
                 GUILayout.Label(status);
             }
         }
+
         GUILayout.EndScrollView();
     }
 
@@ -187,6 +188,7 @@ public class AnimatorStatesLister : EditorWindow
     }
 
     private Vector2 statesScrollPosition;
+
     private ChildAnimatorState ListStates(ChildAnimatorState[] statesAvailable)
     {
         // Initialize toggles array if it's not already initialized
@@ -200,6 +202,7 @@ public class AnimatorStatesLister : EditorWindow
         {
             stateToggles[i] = GUILayout.Toggle(stateToggles.ElementAt(i), statesAvailable.ElementAt(i).state.name);
         }
+
         GUILayout.EndScrollView();
 
         activeClip = EditorGUILayout.Popup("Clip", activeClip, statesAvailable.Select(x => x.state.name).ToArray());
@@ -254,16 +257,12 @@ public class AnimatorStatesLister : EditorWindow
             EditorGUILayout.Popup("Previous Trigger", activePreviousParameter, parameters.ToArray());
     }
 
-    private ChildAnimatorState[] ActionsSelections(AnimatorControllerLayer layer)
+    private ChildAnimatorState[] ActionsSelections(ChildAnimatorState[] availableStates)
     {
-        var childAnimatorStates = activeStateMachine == 0
-            ? layer.stateMachine.states
-            : layer.stateMachine.stateMachines[activeStateMachine - 1].stateMachine.states;
-
-        var allStates = from s in childAnimatorStates
+        var allStates = from s in availableStates
             where s.state.name.StartsWith("A_")
             select s;
-        var actionNames = (from s in childAnimatorStates select s.state.name.Split('_').Skip(1).Take(1))
+        var actionNames = (from s in availableStates select s.state.name.Split('_').Skip(1).Take(1))
             .SelectMany(x => x)
             .Distinct().ToArray();
         ArrayUtility.Insert(ref actionNames, 0, "All");
@@ -279,19 +278,86 @@ public class AnimatorStatesLister : EditorWindow
                 select s).ToArray();
     }
 
-    private AnimatorStateMachine StateMachineSelection(AnimatorControllerLayer layer)
+    // Recursively display the state machine hierarchy as a foldout.
+    // If unfolded, the state machine is filtered and we return the states of the selected state machine and its children.
+    // If folded, we return the states of the parent state machine.
+    // We start with > Root and then we put each sub state machine under the parent state machine of each sub state machine and so on.
+    // Put each sub state machine under the parent state machine of each sub state machine and so on.
+    // Each unfolded state machine would be displayed in a dropdown like the following:
+    // Root is always present and it's the first item as it's the starting point of the layer. (AnimatorControllerLayer)
+    // "Root"
+    // "Root > State Machine 1"
+    // "Root > State Machine 1 > State Machine 1.1"
+    // "Root > State Machine 2"
+    private Dictionary<string, bool> foldoutStates = new Dictionary<string, bool>();
+    private List<string> stateMachinePaths = new List<string>();
+    private int activeStateMachineIndex = 0;
+
+    private ChildAnimatorState[] StateMachineSelection(AnimatorControllerLayer selectedLayer,
+        AnimatorStateMachine substateMachine = null)
     {
-        var stateMachines = from s in layer.stateMachine.stateMachines select s.stateMachine.name;
-        var stateMachinesArray = stateMachines.ToArray();
-        ArrayUtility.Insert(ref stateMachinesArray, 0, "Root");
-        activeStateMachine = EditorGUILayout.Popup("State Machine", activeStateMachine, stateMachinesArray);
-        if (activeStateMachine == 0)
+        if (substateMachine == null)
         {
-            return layer.stateMachine;
+            substateMachine = selectedLayer.stateMachine;
         }
 
-        return layer.stateMachine.stateMachines[activeStateMachine - 1].stateMachine;
+        // Initialize or clear the paths list
+        if (stateMachinePaths.Count == 0 || substateMachine == selectedLayer.stateMachine)
+        {
+            stateMachinePaths.Clear();
+            foldoutStates.Clear();
+            stateMachinePaths.Add("Root"); // Always add "Root" as the first item
+            foldoutStates["Root"] = true; // Default to expanded
+            PopulateStateMachinePaths(substateMachine, "Root");
+        }
+
+        // Display the dropdown for state machine selection
+        activeStateMachineIndex =
+            EditorGUILayout.Popup("State Machine:", activeStateMachineIndex, stateMachinePaths.ToArray());
+
+        // Determine the selected state machine based on the active index
+        string selectedPath = stateMachinePaths[activeStateMachineIndex];
+        AnimatorStateMachine selectedStateMachine = FindStateMachineByPath(selectedLayer.stateMachine, selectedPath);
+
+        // Return the states of the selected state machine
+        return selectedStateMachine != null ? selectedStateMachine.states : Array.Empty<ChildAnimatorState>();
     }
+
+    private void PopulateStateMachinePaths(AnimatorStateMachine stateMachine, string pathPrefix)
+    {
+        foreach (var subStateMachine in stateMachine.stateMachines)
+        {
+            string path = $"{pathPrefix} > {subStateMachine.stateMachine.name}";
+            stateMachinePaths.Add(path);
+            foldoutStates[path] = false; // Start as not expanded
+
+            if (foldoutStates[pathPrefix]) // If the parent is expanded, recursively add child state machines
+            {
+                PopulateStateMachinePaths(subStateMachine.stateMachine, path);
+            }
+        }
+    }
+
+    private AnimatorStateMachine FindStateMachineByPath(AnimatorStateMachine rootStateMachine, string path)
+    {
+        string[] pathParts = path.Split(new[] { " > " }, StringSplitOptions.RemoveEmptyEntries);
+        AnimatorStateMachine current = rootStateMachine;
+        for (int i = 1; i < pathParts.Length; i++) // Start at 1 to skip "Root"
+        {
+            var found = current.stateMachines.FirstOrDefault(sm => sm.stateMachine.name == pathParts[i]);
+            if (found.stateMachine != null)
+            {
+                current = found.stateMachine;
+            }
+            else
+            {
+                return null; // Path does not exist
+            }
+        }
+
+        return current;
+    }
+
 
     private AnimatorControllerLayer LayerSelection()
     {
@@ -392,6 +458,7 @@ public class AnimatorStatesLister : EditorWindow
         return allAnimations.FirstOrDefault(x => Regex.IsMatch(x.state.name, expression));
     }
 
+
     private bool TryFindAnimationByName(string expression, ChildAnimatorState[] allAnimations,
         out ChildAnimatorState result)
     {
@@ -400,7 +467,7 @@ public class AnimatorStatesLister : EditorWindow
     }
 
 
-[CanBeNull]
+    [CanBeNull]
     private ChildAnimatorState[] FilterAnimations(string expression, ChildAnimatorState[] allAnimations)
     {
         return allAnimations.Where(x => Regex.IsMatch(x.state.name, expression)).ToArray();
@@ -420,7 +487,8 @@ public class AnimatorStatesLister : EditorWindow
                 nextClipName = $"A_{result[action]}_?{result[character]}?_{result[transitionTo]}";
             }
 
-            if (TryFindAnimationByName($"^{nextClipName}_?A?$", allAnimations, out var nextClip) && nextClip.state != null)
+            if (TryFindAnimationByName($"^{nextClipName}_?A?$", allAnimations, out var nextClip) &&
+                nextClip.state != null)
             {
                 clip.NextAnimations.Add(nextClip.state.name);
             }
