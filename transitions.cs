@@ -63,7 +63,7 @@ public class AnimatorStatesLister : EditorWindow
         GetWindow<AnimatorStatesLister>("Animator States");
     }
 
-    void OnGUI()
+    private void OnGUI()
     {
         scrollPosition = GUILayout.BeginScrollView(scrollPosition, GUILayout.ExpandHeight(true));
         if (GUILayout.Button("List States"))
