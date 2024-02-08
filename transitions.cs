@@ -145,7 +145,7 @@ public class AnimatorStatesLister : EditorWindow
         GUILayout.EndScrollView();
     }
 
-    private void ClearBehaviors(ChildAnimatorState[] statesAvailable)
+    private static void ClearBehaviors(ChildAnimatorState[] statesAvailable)
     {
         foreach (var state in statesAvailable)
         {
@@ -153,7 +153,7 @@ public class AnimatorStatesLister : EditorWindow
         }
     }
 
-    private void CopyBehaviorFromClip(ChildAnimatorState clip, ChildAnimatorState[] statesAvailable)
+    private static void CopyBehaviorFromClip(ChildAnimatorState clip, ChildAnimatorState[] statesAvailable)
     {
         var behaviors = clip.state.behaviours;
         foreach (var state in statesAvailable)
@@ -338,7 +338,7 @@ public class AnimatorStatesLister : EditorWindow
         }
     }
 
-    private AnimatorStateMachine FindStateMachineByPath(AnimatorStateMachine rootStateMachine, string path)
+    private static AnimatorStateMachine FindStateMachineByPath(AnimatorStateMachine rootStateMachine, string path)
     {
         string[] pathParts = path.Split(new[] { " > " }, StringSplitOptions.RemoveEmptyEntries);
         AnimatorStateMachine current = rootStateMachine;
@@ -459,7 +459,7 @@ public class AnimatorStatesLister : EditorWindow
     }
 
 
-    private bool TryFindAnimationByName(string expression, ChildAnimatorState[] allAnimations,
+    private static bool TryFindAnimationByName(string expression, ChildAnimatorState[] allAnimations,
         out ChildAnimatorState result)
     {
         result = allAnimations.FirstOrDefault(x => Regex.IsMatch(x.state.name, expression));
@@ -555,7 +555,7 @@ public class AnimatorStatesLister : EditorWindow
         }
     }
 
-    private void ClearTransitions(ChildAnimatorState[] statesAvailable)
+    private static void ClearTransitions(ChildAnimatorState[] statesAvailable)
     {
         for (var i = 0; i < statesAvailable.Length; i++)
         {
@@ -610,7 +610,7 @@ public class AnimatorStatesLister : EditorWindow
         }
     }
 
-    private void AddTransition(string animationName, AnimatorState state, AnimatorControllerParameter parameter,
+    private static void AddTransition(string animationName, AnimatorState state, AnimatorControllerParameter parameter,
         ChildAnimatorState[] statesAvailable)
     {
         if (TryFindAnimationByName($"^{animationName}$", statesAvailable, out var clip))
