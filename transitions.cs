@@ -631,7 +631,7 @@ public class AnimatorStatesLister : EditorWindow
 
     public RegexClip ParseClipName(string clipName)
     {
-        var pattern =
+        const string pattern =
             @"A_(?<action>[a-z]+)_(?<char>[A-Z]?)_?(?<clip>\d{2})_?(?<alternate>[A-Z]?)?-?(?<transitionTo>(?<nextName>[a-z]+)?_?(?<nextClip>\d{2}))?";
         var match = Regex.Match(clipName, pattern);
 
@@ -657,7 +657,7 @@ public class AnimatorStatesLister : EditorWindow
     private void ListAnimatorStates()
     {
         ArrayUtility.Clear(ref statuses);
-        Object selectedObject = Selection.activeObject;
+        var selectedObject = Selection.activeObject;
 
         if (selectedObject == null)
         {
@@ -666,9 +666,8 @@ public class AnimatorStatesLister : EditorWindow
             return;
         }
 
-        if (selectedObject is AnimatorController)
+        if (selectedObject is AnimatorController controller)
         {
-            AnimatorController controller = selectedObject as AnimatorController;
             activeController = controller;
 
             foreach (var layer in controller.layers)
